@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hidden Value</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap">
+<style>
+/* A trading workstation: tiled panes with title bars, a quote strip, a price ladder and a time-and-sales tape. */
+:root {
+  --gap: #d3d7dc; --pane: #fff; --bar: #eef0f2; --chart: #f8f9fa; --field: #fff; --hover: #e4e7eb;
+  --fg: #1f1f1f; --mute: #5f6368; --line: #e0e3e7; --line-strong: #80868b; --band: #e4e7eb; --ink: #fff;
+  --bid: #137333; --ask: #c5221f; --bid-text: #137333; --ask-text: #c5221f; --action: #0b57d0; --action-dark: #0842a0; --settle: #0b57d0;
+  --sans: Roboto, Arial, sans-serif; --num: "Roboto Mono", Consolas, monospace;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html { background: var(--pane); scrollbar-color: var(--line-strong) var(--pane); }
+::selection { background: #c2d7fa; }
+body { margin: 0; background: var(--pane); color: var(--fg); font: 13px/1.45 var(--sans); caret-color: var(--settle); }
+.topbar { display: flex; align-items: stretch; gap: 24px; height: 38px; padding-inline: max(12px, env(safe-area-inset-left, 0px)) max(12px, env(safe-area-inset-right, 0px)); background: var(--bar); border-bottom: 1px solid var(--gap); }
+.brand { margin: 0; align-self: center; font-size: 14px; font-weight: 500; white-space: nowrap; }
+.tabs { display: flex; gap: 2px; }
+.tabs button { font: 400 13px var(--sans); color: var(--mute); background: none; border: 0; padding: 0 12px; cursor: pointer; }
+.tabs button:hover { color: var(--fg); background: var(--hover); }
+.tabs button[aria-current="true"] { color: var(--fg); font-weight: 500; background: var(--pane); box-shadow: inset 0 2px 0 var(--settle); }
+.how { margin-left: auto; align-self: center; color: var(--mute); font-size: 12px; text-decoration: none; white-space: nowrap; }
+.how:hover { color: var(--fg); text-decoration: underline; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--settle); outline-offset: 1px; }
+p { margin: 0; max-width: 76ch; }
+.mute { color: var(--mute); }
+h2 { margin: 0; font-size: 12px; font-weight: 500; }
+
+.workspace { background: var(--gap); display: grid; gap: 1px; grid-template-columns: minmax(0, 1fr) 176px 300px; grid-template-rows: auto auto 1fr; grid-template-areas: "strip strip strip" "market ladder ticket" "tape ladder rules"; min-height: calc(100vh - 39px); }
+.pane { background: var(--pane); min-width: 0; }
+.pane-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 26px; padding: 0 10px; background: var(--bar); color: var(--fg); }
+.pane-body { padding: 10px; }
+
+.strip { grid-area: strip; display: flex; flex-wrap: wrap; align-items: stretch; background: var(--pane); }
+.symbol { align-self: center; padding: 7px 16px 7px 10px; font-weight: 500; }
+.facts { display: flex; flex-wrap: wrap; flex: 1; margin: 0; }
+.facts div { padding: 6px 14px; border-left: 1px solid var(--line); }
+.facts dt { color: var(--mute); font-size: 11px; white-space: nowrap; }
+.facts dd { margin: 0; font: 500 14px var(--num); white-space: nowrap; }
+.facts .strip-bid dd { color: var(--bid-text); } .facts .strip-ask dd { color: var(--ask-text); }
+#last-price small { font-size: 12px; font-weight: 400; margin-left: 6px; }
+.up { color: var(--bid-text); } .down { color: var(--ask-text); }
+
+.market-pane { grid-area: market; }
+.chart { display: block; width: 100%; height: 300px; background: var(--chart); }
+.chart text { font: 11px var(--num); fill: var(--mute); }
+.chart .grid { stroke: var(--line); }
+.chart .quote { fill: var(--band); }
+.chart .quote.live { fill: none; stroke: var(--line-strong); stroke-dasharray: 3 3; }
+.chart .bid { stroke: var(--bid); stroke-width: 1.5; }
+.chart .ask { stroke: var(--ask); stroke-width: 1.5; }
+.chart .price { fill: none; stroke: var(--fg); stroke-width: 1.5; stroke-linejoin: round; }
+.chart .m-buy { fill: var(--ask); stroke: var(--chart); stroke-width: 1.5; }
+.chart .m-sell { fill: var(--bid); stroke: var(--chart); stroke-width: 1.5; }
+.chart .settle { stroke: var(--settle); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.chart .tag { fill: var(--settle); } .chart .tag-last { fill: var(--fg); }
+.chart .tag-text { fill: var(--ink); font-weight: 500; }
+.key { display: flex; flex-wrap: wrap; gap: 2px 16px; padding: 6px 10px; font-size: 12px; color: var(--mute); }
+.key span { display: inline-flex; align-items: center; gap: 5px; }
+.key svg { width: 10px; height: 10px; }
+.key .swatch { width: 12px; height: 2px; }
+
+.ladder-pane { grid-area: ladder; }
+.ladder { font: 12px/18px var(--num); }
+.ladder th, .ladder td { padding: 0 6px; text-align: center; border-bottom: 1px solid var(--line); }
+.ladder th { font: 11px/20px var(--sans); }
+.ladder th:first-child, .ladder td:first-child, .ladder th:last-child, .ladder td:last-child { width: 34%; padding: 0 6px; text-align: center; }
+.ladder .major { font-weight: 500; color: var(--fg); }
+.ladder td.price { color: var(--mute); background: var(--bar); }
+.ladder .major td.price { color: var(--fg); }
+.ladder td.on-bid { background: var(--bid); color: var(--ink); font-weight: 500; }
+.ladder td.on-ask { background: var(--ask); color: var(--ink); font-weight: 500; }
+.ladder tr.last td.price { background: var(--fg); color: var(--ink); font-weight: 500; }
+.ladder tr.settled td.price { background: var(--settle); color: var(--ink); font-weight: 500; }
+
+.ticket-pane { grid-area: ticket; }
+.rules-pane { grid-area: rules; }
+.ticket { display: grid; gap: 10px; align-content: start; }
+.event { min-height: 2.9em; color: var(--mute); }
+form { display: grid; gap: 6px; }
+label { display: grid; grid-template-columns: minmax(0, 1fr) 92px; align-items: center; gap: 10px; min-width: 0; }
+input { font: 500 14px var(--num); width: 100%; box-sizing: border-box; height: 30px; padding: 0 8px; text-align: right; color: var(--fg); background: var(--field); border: 1px solid var(--line-strong); border-radius: 2px; }
+input:hover { border-color: var(--mute); }
+input:focus { border-color: var(--settle); }
+.bid-label span { color: var(--bid-text); font-weight: 500; } .ask-label span { color: var(--ask-text); font-weight: 500; }
+input[aria-invalid="true"] { border-color: var(--ask); box-shadow: inset 0 0 0 1px var(--ask); }
+button.action { font: 500 13px var(--sans); color: var(--ink); background: var(--action); border: 1px solid var(--action); border-radius: 2px; height: 32px; padding-inline: 14px; cursor: pointer; }
+button.action:hover { background: var(--action-dark); border-color: var(--action-dark); }
+button.action:disabled { opacity: 0.6; cursor: progress; }
+button.plain { font: 400 13px var(--sans); color: var(--fg); background: var(--bar); border: 1px solid var(--line-strong); border-radius: 2px; height: 32px; padding-inline: 14px; cursor: pointer; }
+button.plain:hover { background: var(--hover); }
+form button { margin-top: 4px; }
+.error { color: var(--ask-text); }
+.error:empty { display: none; }
+#done { display: grid; gap: 0; }
+.result { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.result span { color: var(--mute); }
+.result b { font: 500 14px var(--num); }
+.result b.reveal { font-size: 20px; }
+#next { margin-top: 10px; }
+.note { font-size: 12px; color: var(--mute); }
+.rules { display: grid; gap: 6px; padding: 10px; font-size: 12px; color: var(--mute); scroll-margin-top: 12px; }
+
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { text-align: right; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td:not(:first-child) { font-family: var(--num); }
+th:first-child, td:first-child { text-align: left; white-space: normal; padding-left: 0; }
+th:last-child, td:last-child { padding-right: 0; }
+th { color: var(--mute); font-weight: 400; font-size: 11px; }
+.tape-pane { grid-area: tape; }
+#trades td:last-child.sold { color: var(--ask-text); } #trades td:last-child.bought { color: var(--bid-text); }
+#trades tr.pending td { color: var(--mute); }
+
+.report-view { padding: 16px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); max-width: 1120px; }
+.report-view, #report { display: grid; gap: 28px; }
+.sheet { display: grid; gap: 10px; min-width: 0; }
+.sheet h2 { font-size: 15px; font-weight: 500; }
+.sheet > .mute { font-size: 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.split { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.calibration { width: 100%; height: auto; display: block; background: var(--chart); }
+.calibration text { fill: var(--mute); font: 13px var(--sans); }
+.calibration .frame { fill: none; stroke: var(--line); }
+.calibration .ideal { stroke: var(--line-strong); stroke-dasharray: 4 4; }
+.calibration circle { fill: var(--settle); stroke: var(--chart); stroke-width: 2; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .settling { animation: wipe 600ms cubic-bezier(0.16, 1, 0.3, 1); }
+  #trades tr.fresh td { animation: fill 700ms ease-out; }
+}
+@keyframes wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes fill { from { background: var(--line-strong); } to { background: transparent; } }
+
+/* The ladder repeats the chart's scale, so it goes first when space runs out. */
+@media (max-width: 1100px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "strip strip" "market ticket" "tape rules"; }
+  .ladder-pane { display: none; }
+}
+@media (max-width: 720px) {
+  .workspace { display: flex; flex-direction: column; min-height: 0; }
+  .strip { order: 0; } .ticket-pane { order: 1; } .market-pane { order: 2; } .tape-pane { order: 3; } .rules-pane { order: 4; }
+  .symbol { width: 100%; padding-bottom: 0; }
+  .facts div { flex: 1 0 28%; border-left: 0; padding: 4px 10px; }
+  .chart { height: 220px; }
+  .event { min-height: 0; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .topbar { gap: 12px; }
+}
+</style>
+
+<header class="topbar">
+  <h1 class="brand">Hidden Value</h1>
+  <nav class="tabs">
+    <button id="tab-play" aria-current="true">Play</button>
+    <button id="tab-report">Report</button>
+  </nav>
+  <a class="how" href="#rules" id="how-link">How it works</a>
+</header>
+
+<main>
+  <section id="view-play" class="workspace">
+    <div class="strip">
+      <p class="symbol">Hidden asset: worth 900 or 1100?</p>
+      <dl class="facts">
+        <div class="strip-bid"><dt>Bid</dt><dd id="strip-bid">&ndash;</dd></div>
+        <div class="strip-ask"><dt>Ask</dt><dd id="strip-ask">&ndash;</dd></div>
+        <div><dt>Last trade</dt><dd id="last-price">&ndash;</dd></div>
+        <div><dt>Your position</dt><dd id="position-label">0</dd></div>
+        <div><dt>Trader</dt><dd id="step-label"></dd></div>
+        <div><dt>Game</dt><dd id="game-label">Loading</dd></div>
+        <div><dt>Traders who know</dt><dd id="alpha-label"></dd></div>
+        <div><dt>Possible values</dt><dd>900 or 1100</dd></div>
+        <div><dt>Quote limits</dt><dd>901 to 1099</dd></div>
+      </dl>
+    </div>
+
+    <div class="pane market-pane">
+      <div class="pane-bar"><h2>Chart</h2></div>
+      <svg class="chart" id="chart" role="img" aria-label="Your quotes and the trades so far, on a price scale from 900 to 1100. The trades table has the same numbers."></svg>
+      <div class="key">
+        <span><i class="swatch" style="background:var(--bid)"></i>Your bid</span>
+        <span><i class="swatch" style="background:var(--ask)"></i>Your ask</span>
+        <span><svg viewBox="0 0 12 12"><path d="M6 1 11 10H1Z" fill="var(--ask)"/></svg>Trader bought from you</span>
+        <span><svg viewBox="0 0 12 12"><path d="M6 11 1 2H11Z" fill="var(--bid)"/></svg>Trader sold to you</span>
+      </div>
+    </div>
+
+    <aside class="pane tape-pane">
+      <div class="pane-bar"><h2>Trades</h2></div>
+      <div class="pane-body scroll" id="trades"></div>
+    </aside>
+
+    <aside class="pane ladder-pane">
+      <div class="pane-bar"><h2>Price ladder</h2></div>
+      <div id="ladder"></div>
+    </aside>
+
+    <aside class="pane ticket-pane">
+      <div class="pane-bar"><h2 id="ticket-title">Your quote</h2></div>
+      <div class="pane-body ticket">
+        <p class="event" id="event" aria-live="polite"></p>
+        <form id="form" novalidate autocomplete="off">
+          <label id="belief-wrap"><span>Chance of 1100 (%)</span><input id="belief" inputmode="numeric" aria-describedby="error"></label>
+          <label class="bid-label"><span>Bid (you buy)</span><input id="bid" inputmode="numeric" aria-describedby="error"></label>
+          <label class="ask-label"><span>Ask (you sell)</span><input id="ask" inputmode="numeric" aria-describedby="error"></label>
+          <button class="action" id="submit" type="submit">Place quote</button>
+        </form>
+        <p class="error" id="error" role="alert"></p>
+        <div id="done" hidden>
+          <div class="result"><span>Settled at</span><b class="reveal" id="done-value"></b></div>
+          <div class="result"><span>Result</span><b id="done-pnl"></b></div>
+          <div class="result"><span>Games finished</span><b id="done-count"></b></div>
+          <button class="action" id="next">Next game</button>
+        </div>
+        <p class="note" id="save-state"></p>
+      </div>
+    </aside>
+
+    <aside class="pane rules-pane">
+      <div class="pane-bar"><h2>Rules</h2></div>
+      <div class="rules" id="rules">
+        <p>A coin decides whether the asset is worth 900 or 1100, and you never see it. Quote a price you would buy at and a price you would sell at. Eight traders then come along, one at a time, and each trades once with you. Anyone who knows the value buys if it's 1100 and sells if it's 900. Everyone else flips a coin.</p>
+        <p>Before each new quote, say how likely 1100 now seems. Your first quote comes before any trade, when the chance is 50%. Aim for the tightest quotes that wouldn't lose you money on average. No calculator, no notes: the point is to record your own judgement.</p>
+      </div>
+    </aside>
+  </section>
+
+  <section id="view-report" class="report-view" hidden>
+    <div class="sheet" id="report-gate">
+      <h2 id="gate-title">Your report</h2>
+      <p id="gate-text"></p>
+      <div class="actions"><button class="action" id="show-report">Show my report</button><button class="plain" id="save-csv">Save my data as CSV</button></div>
+      <p class="mute" id="csv-state"></p>
+    </div>
+    <div id="report" hidden></div>
+  </section>
+</main>
+
+<script>/*ENGINE*/</script>
+<script>
+const E = globalThis.HiddenValueEngine;
+const $ = id => document.getElementById(id);
+const LOCAL_KEY = "hidden-value-games";
+const REQUIRED_GAMES = 30;
+
+// Finished games, as { game number: csv text }, kept in this browser's storage.
+let games = {};
+
+function readLocal() {
+  try { return JSON.parse(localStorage.getItem(LOCAL_KEY)) || {}; } catch { return {}; }
+}
+function writeLocal() {
+  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(games)); } catch {}
+}
+function load() {
+  games = readLocal();
+  $("save-state").textContent = "Finished games save in this browser only, so keep a copy with Save my data as CSV in Report. A game you leave halfway is lost.";
+}
+function saveGame(number, csv) {
+  games[number] = csv;
+  writeLocal();
+}
+const gameCount = () => Object.keys(games).length;
+const nextGameNumber = () => Math.max(-1, ...Object.keys(games).map(Number)) + 1;
+const allCsv = () => Object.keys(games).map(Number).sort((a, b) => a - b).map(n => games[n]).join("\n");
+
+// One game in progress.
+let current = null;
+
+function newSeed() {
+  return crypto.getRandomValues(new Uint32Array(1))[0] >>> 2;
+}
+function startGame() {
+  current = { game: nextGameNumber(), seed: newSeed(), decisions: [], trades: [], position: 0, done: false };
+  $("done").hidden = true;
+  $("ticket-title").textContent = "Your quote";
+  $("form").hidden = false;
+  $("error").textContent = "";
+  const number = current.game + 1;
+  $("game-label").textContent = number <= REQUIRED_GAMES ? `${number} of ${REQUIRED_GAMES}` : String(number);
+  $("alpha-label").textContent = `About ${Math.round(E.alpha(current.game) * 100)}%`;
+  advance();
+}
+function recordTrade(last, decision) {
+  const you = last.side === "buy" ? "sold" : "bought";
+  current.position += last.side === "buy" ? -1 : 1;
+  current.trades.push({ side: last.side, price: last.price, you, position: current.position, decision });
+}
+function advance() {
+  const text = current.decisions.map(d => d.join(" ")).join(";");
+  const state = JSON.parse(E.step(current.game, current.seed, text));
+  if (state.last) recordTrade(state.last, current.decisions[current.decisions.length - 1]);
+  current.done = state.done;
+  ["belief", "bid", "ask"].forEach(id => { $(id).value = ""; $(id).removeAttribute("aria-invalid"); });
+  renderGame();
+  if (state.done) return finishGame(state);
+  const first = state.step === 0;
+  $("belief-wrap").hidden = first;
+  (first ? $("bid") : $("belief")).focus({ preventScroll: true });
+}
+function renderGame() {
+  const trades = current.trades;
+  const last = trades[trades.length - 1], before = trades[trades.length - 2];
+  const held = current.position;
+  $("position-label").textContent = held > 0 ? `+${held}` : String(held);
+  $("step-label").textContent = `${Math.min(trades.length + 1, E.steps)} of ${E.steps}`;
+  const price = $("last-price");
+  price.textContent = last ? last.price : "\u2013";
+  if (last && before && last.price !== before.price) {
+    const change = last.price - before.price;
+    const small = el("small", change > 0 ? "up" : "down", change > 0 ? `+${change}` : String(change));
+    price.append(small);
+  }
+  if (current.done) $("event").textContent = `That was the last trader. ${sentence(last)}`;
+  else $("event").textContent = last ? sentence(last) : "No trades yet. Set your first quote.";
+  drawChart();
+  drawTrades();
+}
+const sentence = t => `Trader ${current.trades.indexOf(t) + 1} ${t.side === "buy" ? "bought from" : "sold to"} you at ${t.price}.`;
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+// Each quote is a block in its trader's column, and the trades join up into a price line.
+const num = id => /^\d+$/.test($(id).value.trim()) ? Number($(id).value.trim()) : NaN;
+const inRange = p => Number.isInteger(p) && p > E.low && p < E.high;
+// Display only, with a row for every exact price, so it never rounds a quote to its grid.
+function drawLadder() {
+  const bid = current.done ? NaN : num("bid"), ask = current.done ? NaN : num("ask");
+  const last = current.trades.length ? current.trades[current.trades.length - 1].price : NaN;
+  $("strip-bid").textContent = inRange(bid) ? bid : "\u2013";
+  $("strip-ask").textContent = inRange(ask) ? ask : "\u2013";
+  const prices = new Set([bid, ask, last, current.done ? current.value : NaN].filter(Number.isInteger));
+  for (let p = E.low; p <= E.high; p += 10) prices.add(p);
+  const rows = [...prices].sort((a, b) => b - a).map(p => {
+    const cls = [p % 50 === 0 && "major", p === last && "last", current.done && p === current.value && "settled"].filter(Boolean).join(" ");
+    const showBid = p === bid && inRange(bid), showAsk = p === ask && inRange(ask);
+    return `<tr class="${cls}"><td class="${showBid ? "on-bid" : ""}">${showBid ? 1 : ""}</td><td class="price">${p}</td><td class="${showAsk ? "on-ask" : ""}">${showAsk ? 1 : ""}</td></tr>`;
+  }).join("");
+  $("ladder").innerHTML = `<table class="ladder" aria-label="Price ladder with your bid, your ask and the last trade. The trades table and the quote strip have the same numbers."><thead><tr><th>Bid</th><th>Price</th><th>Ask</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function drawChart(animate = false) {
+  if (!current) return;
+  drawLadder();
+  const svg = $("chart");
+  const W = svg.clientWidth, H = svg.clientHeight;
+  if (!W) return;
+  const right = 60, top = 10, bottom = 26, plotW = W - right, plotH = H - top - bottom;
+  const y = p => top + (E.high - p) / (E.high - E.low) * plotH;
+  const col = plotW / E.steps;
+  const mid = i => (i + 0.5) * col;
+  const tag = (price, text, cls) => `<rect class="${cls}" x="${plotW + 2}" y="${y(price) - 10}" width="${right - 2}" height="20" rx="2"/><text class="tag-text" x="${plotW + right / 2 + 1}" y="${y(price) + 4}" text-anchor="middle">${text}</text>`;
+  let out = "";
+  for (let p = E.low; p <= E.high; p += 50) {
+    out += `<line class="grid" x1="0" x2="${plotW}" y1="${y(p)}" y2="${y(p)}"/><text x="${plotW + 8}" y="${y(p) + 4}">${p}</text>`;
+  }
+  for (let i = 0; i < E.steps; i++) {
+    out += `<text x="${mid(i)}" y="${H - 6}" text-anchor="middle">${W < 480 ? i + 1 : `Trader ${i + 1}`}</text>`;
+  }
+  const quote = (i, bid, ask, live) => {
+    const x1 = i * col + 3, x2 = (i + 1) * col - 3;
+    let s = "";
+    if (inRange(bid) && inRange(ask) && bid < ask) s += `<rect class="quote${live ? " live" : ""}" x="${x1}" y="${y(ask)}" width="${x2 - x1}" height="${y(bid) - y(ask)}"/>`;
+    if (inRange(bid)) s += `<line class="bid" x1="${x1}" x2="${x2}" y1="${y(bid)}" y2="${y(bid)}"/>`;
+    if (inRange(ask)) s += `<line class="ask" x1="${x1}" x2="${x2}" y1="${y(ask)}" y2="${y(ask)}"/>`;
+    return s;
+  };
+  current.trades.forEach((t, i) => { out += quote(i, t.decision[1], t.decision[2], false); });
+  if (!current.done) out += quote(current.trades.length, num("bid"), num("ask"), true);
+  if (current.trades.length) {
+    out += `<polyline class="price" points="${current.trades.map((t, i) => `${mid(i)},${y(t.price)}`).join(" ")}"/>`;
+    current.trades.forEach((t, i) => {
+      const x = mid(i), py = y(t.price), r = i === current.trades.length - 1 ? 8 : 6;
+      out += t.side === "buy"
+        ? `<path class="m-buy" d="M${x} ${py - r}L${x + r} ${py + r * 0.75}H${x - r}Z"><title>You sold at ${t.price}</title></path>`
+        : `<path class="m-sell" d="M${x} ${py + r}L${x + r} ${py - r * 0.75}H${x - r}Z"><title>You bought at ${t.price}</title></path>`;
+    });
+    if (!current.done) out += tag(current.trades[current.trades.length - 1].price, current.trades[current.trades.length - 1].price, "tag-last");
+  }
+  if (current.done && current.value !== undefined) {
+    out += `<g class="${animate ? "settling" : ""}"><line class="settle" x1="0" x2="${plotW}" y1="${y(current.value)}" y2="${y(current.value)}"/>${tag(current.value, current.value, "tag")}</g>`;
+  }
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = out;
+}
+function drawTrades() {
+  const box = $("trades"), done = current.trades.length;
+  const rows = current.trades.map((t, i) => [i + 1, `${t.decision[0]}%`, t.decision[1], t.decision[2], `${t.you} ${t.price}`]);
+  for (let i = done; i < E.steps; i++) rows.push([i + 1, "\u2013", "\u2013", "\u2013", "\u2013"]);
+  box.replaceChildren(table(["#", "Said", "Bid", "Ask", "Trade"], rows));
+  box.querySelectorAll("tbody tr").forEach((row, i) => {
+    if (i < done) row.lastChild.className = current.trades[i].you;
+    else row.className = "pending";
+    if (i === done - 1) row.classList.add("fresh");
+  });
+}
+function finishGame(state) {
+  current.value = state.value;
+  drawChart(true);
+  $("ticket-title").textContent = "Result";
+  $("form").hidden = true;
+  $("belief-wrap").hidden = false;
+  $("done").hidden = false;
+  $("done-value").textContent = state.value;
+  const count = gameCount() + 1;
+  const pnl = $("done-pnl");
+  pnl.textContent = state.pnl > 0 ? `+${state.pnl}` : String(state.pnl);
+  pnl.className = state.pnl > 0 ? "up" : state.pnl < 0 ? "down" : "";
+  $("done-count").textContent = count;
+  $("next").focus({ preventScroll: true });
+  saveGame(current.game, state.csv);
+}
+
+["belief", "bid", "ask"].forEach(id => $(id).addEventListener("input", () => {
+  $(id).removeAttribute("aria-invalid");
+  $("error").textContent = "";
+  drawChart();
+}));
+$("form").addEventListener("submit", event => {
+  event.preventDefault();
+  const first = current.decisions.length === 0;
+  const percent = first ? 50 : num("belief"), bid = num("bid"), ask = num("ask");
+  if ([percent, bid, ask].some(Number.isNaN) || !E.valid(percent, bid, ask)) {
+    const badBelief = !(percent >= 1 && percent <= 99);
+    $("error").textContent = badBelief
+      ? "Give the chance as a whole number from 1 to 99."
+      : `Bid and ask must be whole numbers between ${E.low} and ${E.high}, with the bid below the ask.`;
+    const bad = badBelief ? ["belief"] : ["bid", "ask"];
+    bad.forEach(id => $(id).setAttribute("aria-invalid", "true"));
+    $(bad[0]).focus({ preventScroll: true });
+    return;
+  }
+  $("error").textContent = "";
+  current.decisions.push([percent, bid, ask]);
+  advance();
+});
+$("next").addEventListener("click", startGame);
+new ResizeObserver(() => drawChart()).observe($("chart"));
+
+// Report. It stays behind a button: seeing scores early would change how you play.
+function showView(name) {
+  $("view-play").hidden = name !== "play";
+  $("view-report").hidden = name !== "report";
+  $("how-link").hidden = name !== "play";
+  $("tab-play").setAttribute("aria-current", name === "play");
+  $("tab-report").setAttribute("aria-current", name === "report");
+  if (name === "report") renderGate();
+}
+function renderGate() {
+  const count = gameCount();
+  $("report").hidden = true;
+  $("report").replaceChildren();
+  $("report-gate").hidden = false;
+  $("show-report").hidden = count === 0;
+  $("save-csv").hidden = count === 0;
+  $("gate-title").textContent = `${count} of ${REQUIRED_GAMES} games played`;
+  $("gate-text").textContent = count === 0
+    ? "Your report appears here once you have finished a game."
+    : count < REQUIRED_GAMES
+      ? `Wait for ${REQUIRED_GAMES} games if you can. Seeing your scores early can change how you play the rest, and fewer games give wide intervals.`
+      : "You have enough games for a report.";
+}
+function table(headers, rows) {
+  const t = document.createElement("table");
+  const head = t.createTHead().insertRow();
+  headers.forEach(h => { const th = document.createElement("th"); th.textContent = h; head.append(th); });
+  const body = t.createTBody();
+  rows.forEach(r => { const row = body.insertRow(); r.forEach(c => { row.insertCell().textContent = c; }); });
+  const box = document.createElement("div");
+  box.className = "scroll";
+  box.append(t);
+  return box;
+}
+function sheet(title, note, ...content) {
+  const section = el("section", "sheet");
+  section.append(el("h2", "", title), ...content);
+  if (note) section.append(el("p", "mute", note));
+  return section;
+}
+// Said against happened. Dots on the dashed line are perfectly calibrated; bigger dots hold more answers.
+function calibrationPlot(bins) {
+  const x = v => 40 + v * 270, y = v => 290 - v * 270;
+  const dots = bins.map(b => `<circle cx="${x(b.stated).toFixed(1)}" cy="${y(b.observed).toFixed(1)}" r="${Math.max(5, Math.min(14, Math.sqrt(b.count) * 1.5)).toFixed(1)}"><title>You said about ${fixed(b.stated * 100, 0)}%, ${b.count} times. It was 1100 ${fixed(b.observed * 100, 0)}% of the time.</title></circle>`).join("");
+  const ticks = [0, 0.5, 1].map(v => `<text x="${x(v)}" y="310" text-anchor="middle">${v * 100}%</text><text x="34" y="${y(v) + 5}" text-anchor="end">${v * 100}%</text>`).join("");
+  const box = el("div", "");
+  box.innerHTML = `<svg class="calibration" viewBox="0 0 340 340" role="img" aria-label="Calibration plot: what you said against how often the value was 1100. The table beside it has the same numbers.">
+    <rect class="frame" x="40" y="20" width="270" height="270"/><line class="ideal" x1="${x(0)}" y1="${y(0)}" x2="${x(1)}" y2="${y(1)}"/>${ticks}${dots}
+    <text x="175" y="334" text-anchor="middle">You said</text><text x="46" y="38">How often it was 1100</text></svg>`;
+  return box;
+}
+const fixed = (x, n = 3) => x === null ? "n/a" : x.toFixed(n);
+const measureRow = (name, m) => [name, fixed(m.value), `[${fixed(m.low)}, ${fixed(m.high)}]`];
+function renderReport(r) {
+  $("report-gate").hidden = false;
+  const out = $("report");
+  out.hidden = false;
+  const bins = r.calibration.filter(b => b.count > 0);
+  const split = el("div", "split");
+  split.append(calibrationPlot(bins),
+    table(["You said", "Count", "Mean said", "Actually 1100"],
+      bins.map(b => [`${Math.round(b.low * 100)}% to ${Math.round(b.high * 100)}%`, b.count, `${fixed(b.stated * 100, 1)}%`, `${fixed(b.observed * 100, 1)}%`])));
+  out.replaceChildren(
+    sheet("Beliefs", `${r.games} games and ${r.beliefs} stated beliefs. Brackets are 95% bootstrap intervals; in simulations they contained the truth slightly less often than 95%. A slope above 1 is real overreaction, but it reads low because inputs stop at 1% and 99%. Random error alone raises overconfidence, so read it together with the slope.`,
+      table(["Measure", "Value", "Interval"], [
+        measureRow("Brier score, you (lower is better)", r.brier),
+        measureRow("Brier score, exact Bayes on the same games", r.bayesBrier),
+        measureRow("Overconfidence (0 is calibrated)", r.overconfidence),
+        measureRow("Update slope (1 is correct)", r.slope),
+      ])),
+    sheet("Calibration", "If you are calibrated, the dots sit on the dashed line and the two percentages in each row match.", split),
+    sheet("Quotes and profit", "A spread ratio below 1 means quoting tighter than break-even. A wide spread is never punished here, because coin-flip traders accept any price, so high profit is not a sign of skill.",
+      table(["Measure", "Value", "Interval"], [measureRow("Your spread / break-even spread", r.spreadRatio)]),
+      table(["Per trade", "Profit", "Spread capture", "Adverse selection"],
+        [["All traders", r.all], ["Informed", r.informed], ["Coin-flip", r.noise]].map(([n, p]) => [n, fixed(p.pnl, 2), fixed(p.spread, 2), fixed(p.adverse, 2)]))));
+}
+$("show-report").addEventListener("click", () => {
+  $("show-report").textContent = "Calculating";
+  $("show-report").disabled = true;
+  setTimeout(() => {
+    renderReport(JSON.parse(E.report(allCsv())));
+    $("show-report").textContent = "Show my report";
+    $("show-report").disabled = false;
+  }, 30);
+});
+$("save-csv").addEventListener("click", () => {
+  const url = URL.createObjectURL(new Blob([E.header + "\n" + allCsv() + "\n"], { type: "text/csv" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "my_games.csv";
+  link.click();
+  URL.revokeObjectURL(url);
+  $("csv-state").textContent = "Saved. Put my_games.csv in the project's results folder to use it with the terminal report.";
+});
+$("tab-play").addEventListener("click", () => showView("play"));
+$("tab-report").addEventListener("click", () => showView("report"));
+
+load();
+startGame();
+</script>

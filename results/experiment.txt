@@ -1,0 +1,55 @@
+20000 games of 20 takers each. Values 900 or 1100.
+
+A. Fixed quotes: profit per fill against theory (half spread - alpha * 100)
+alpha  half_spread  theory  measured  95% CI          theory in CI
+ 0.00           10    10.0     10.14  [  9.83,  10.45]  yes
+ 0.00           30    30.0     30.31  [ 30.00,  30.62]  yes
+ 0.00           50    50.0     49.87  [ 49.55,  50.18]  yes
+ 0.10           10     0.0      0.21  [ -0.09,   0.52]  yes
+ 0.10           30    20.0     20.22  [ 19.92,  20.53]  yes
+ 0.10           50    40.0     39.68  [ 39.37,  39.99]  NO
+ 0.20           10   -10.0    -10.12  [-10.42,  -9.81]  yes
+ 0.20           30    10.0     10.20  [  9.90,  10.50]  yes
+ 0.20           50    30.0     30.15  [ 29.85,  30.45]  yes
+ 0.30           10   -20.0    -20.05  [-20.35, -19.76]  yes
+ 0.30           30     0.0      0.21  [ -0.09,   0.50]  yes
+ 0.30           50    20.0     19.89  [ 19.60,  20.18]  yes
+ 0.50           10   -40.0    -40.11  [-40.38, -39.85]  yes
+ 0.50           30   -20.0    -20.01  [-20.28, -19.74]  yes
+ 0.50           50     0.0     -0.13  [ -0.40,   0.14]  yes
+Theory inside the interval in 14 of 15 rows.
+
+B. Break-even fixed quotes against Bayesian learning, per game
+alpha  strategy  mean_pnl  95% CI    std_pnl  half_spread  abs_inventory
+ 0.10  fixed         3.46  +/- 6.18    445.7        10.00           3.86
+ 0.10  bayes        -2.20  +/- 5.41    390.6         9.14           3.87
+ 0.30  fixed        -0.86  +/- 5.84    421.5        30.00           6.31
+ 0.30  bayes        -2.74  +/- 2.79    201.2        16.07           6.00
+ 0.50  fixed        -0.10  +/- 5.36    387.1        50.00          10.02
+ 0.50  bayes         4.56  +/- 1.35     97.1        16.52           5.75
+
+C. Who causes the loss, at alpha = 0.30, per fill
+strategy  taker     share  spread_capture  adverse_selection  pnl
+fixed     informed  0.299           30.00            -100.00  -70.00
+fixed     noise     0.701           30.00              -0.18   29.82
+bayes     informed  0.287           16.03             -56.69  -40.66
+bayes     noise     0.713           16.20               0.14   16.35
+
+D. Bayesian market maker with a wrong belief about informed traders
+true alpha = 0.30
+assumed_alpha  mean_pnl  95% CI    half_spread
+         0.00   -591.61  +/- 5.94         0.50
+         0.05   -425.59  +/- 4.42         4.80
+         0.10   -275.55  +/- 3.54         8.56
+         0.20    -99.09  +/- 2.91        13.22
+         0.30     -1.20  +/- 2.72        16.20
+         0.40     58.84  +/- 2.75        18.38
+         0.50    107.89  +/- 2.87        20.86
+         0.70    181.86  +/- 3.08        25.63
+
+E. Correct Bayesian market maker at alpha = 0.50, with finer price ticks
+ticks_per_unit  mean_pnl  95% CI    informed_share
+             1      3.59  +/- 1.30           0.363
+            10      0.30  +/- 1.35           0.417
+           100     -0.36  +/- 1.32           0.454
+          1000     -0.29  +/- 1.35           0.479
