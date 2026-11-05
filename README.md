@@ -64,9 +64,11 @@ used to check the measures.
 
 ## Run it
 
-You need [opam](https://opam.ocaml.org/) with `dune`, `qcheck-core` and `js_of_ocaml`. The game also runs
-in a browser: `web/engine.ml` compiles the same OCaml to JavaScript, and `web/build.py` puts it into one
-page, `web/hidden_value.html`.
+[Play the game in your browser](https://manangoel-code.github.io/market-making-ocaml/web/hidden_value.html).
+Your games save in that browser only. `web/engine.ml` compiles the same OCaml to JavaScript, and `web/build.py`
+puts it into one page, `web/hidden_value.html`.
+
+To run everything else, you need [opam](https://opam.ocaml.org/) with `dune`, `qcheck-core` and `js_of_ocaml`.
 
 ```bash
 opam exec -- dune test --force
